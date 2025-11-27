@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Трекер расходов — Supabase</title>
+  <style>
+    :root{
+      --bg:#f7f7fb; --paper:#ffffff; --text:#1f2328; --muted:#5b6168;
+      --line:#e8e8ef; --accent:#6f1b28; --accent-ink:#fff;
+      --radius:14px; --pad:18px; --maxw:720px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font:16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg); color:var(--text);
+    }
+    .wrap{max-width:var(--maxw); margin:40px auto; padding:0 16px}
+    .card{
+      background:var(--paper); border:1px solid var(--line); border-radius:var(--radius);
+      padding:28px; box-shadow:0 10px 24px rgba(20,20,40,.05);
+    }
+    h1{margin:0 0 8px; font-size:28px}
+    p.lead{margin:0 0 18px; color:var(--muted)}
+    form{display:grid; gap:14px}
+    .field{display:grid; gap:6px}
+    label{font-size:14px; color:var(--muted)}
+    input, textarea, select{
+      border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:16px;
+      background:#fff;
+    }
+    textarea{min-height:110px; resize:vertical}
+    .row{display:grid; grid-template-columns: 1fr 1fr; gap:14px}
+    button{
+      appearance:none; border:none; background:var(--accent); color:var(--accent-ink);
+      font-weight:600; padding:12px 18px; border-radius:999px; cursor:pointer;
+    }
+    button:disabled{opacity:.6; cursor:not-allowed}
+    .note{font-size:13px; color:var(--muted)}
+    .ok{color:#126b36}
+    .err{color:#8a1a1a}
+    @media (max-width:600px){ .row{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Трекер расходов</h1>
+      <p class="lead">Сохраняем сумму, категорию и описание в таблицу <code>expenses</code> (Supabase).</p>
+
+      <form id="form">
+        <div class="row">
+          <div class="field">
+            <label for="amount">Сумма (с копейками)*</label>
+            <input id="amount" type="number" step="0.01" min="0" placeholder="Напр., 1250.50" required>
+          </div>
+          <div class="field">
+            <label for="category">Категория*</label>
+            <input id="category" type="text" maxlength="100" placeholder="Продукты / Транспорт / Аренда…" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="description">Текст/описание</label>
+          <textarea id="description" placeholder="Коротко о трате: где, зачем, детали…"></textarea>
+        </div>
+
+        <button id="saveBtn" type="submit">Сохранить расход</button>
+        <div id="status" class="note"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Supabase JS v2 через CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // 🔧 ВСТАВЬ СВОИ ЗНАЧЕНИЯ
+    const SUPABASE_URL = "https://aagyqcqciyojshlsioty.supabase.co"; // ← сюда URL проекта
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhZ3lxY3FjaXlvanNobHNpb3R5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMjEyNTgsImV4cCI6MjA3OTc5NzI1OH0.mJ-xzXD5vkpjJt76WQkHMcd-I83Jfyq4fI_65C3P1ts"; // ← сюда публичный anon ключ
+
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const form = document.getElementById('form');
+    const statusEl = document.getElementById('status');
+    const btn = document.getElementById('saveBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = "";
+      btn.disabled = true;
+
+      const amount = parseFloat(document.getElementById('amount').value);
+      const category = document.getElementById('category').value.trim();
+      const description = document.getElementById('description').value.trim();
+
+      if (isNaN(amount) || amount < 0 || !category) {
+        statusEl.innerHTML = '<span class="err">Проверь сумму и категорию.</span>';
+        btn.disabled = false;
+        return;
+      }
+
+      // Таблица и колонки соответствуют твоему SQL:
+      // id (SERIAL, PK), category (VARCHAR), description (TEXT),
+      // created_at (TIMESTAMP DEFAULT CURRENT_TIMESTAMP), amount (DECIMAL(10,2))
+      const { data, error } = await client
+        .from('expenses')
+        .insert([{ amount, category, description }]) // created_at заполнится сам
+        .select();
+
+      if (error) {
+        statusEl.innerHTML = '<span class="err">Ошибка: ' + (error.message || 'неизвестно') + '</span>';
+      } else {
+        statusEl.innerHTML = '<span class="ok">Сохранено ✔</span>';
+        form.reset();
+      }
+      btn.disabled = false;
+    });
+  </script>
+</body>
+</html>
